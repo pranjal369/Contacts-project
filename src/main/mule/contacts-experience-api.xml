@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<flow name="create-contacts" doc:id="05a2c0bd-b980-4352-b0b9-e7af52ac29f0" >
+		<http:listener doc:name="Listener" doc:id="0119ce8a-6635-4340-9477-ee0113114635" config-ref="HTTP_Listener_config" path="/exp/create"/>
+		<try doc:name="Try" doc:id="a80e50d5-b553-4090-9003-d13cd193772c" >
+			<http:request method="GET" doc:name="Request" doc:id="9e6e46a4-3c9b-48e0-a774-ee2b91094beb" config-ref="HTTP_Request_configuration" path="/process/create" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="33498c97-eb89-4782-b559-67462d5a5ae6" >
+					<ee:transform doc:name="Transform Message" doc:id="c97e05a6-9e08-4aad-80bf-3e356a21c5a1" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Logger" doc:id="f81faaa0-594f-4cf1-b899-6b79e8caa2b2" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="cddf2644-fee6-4f8f-bd8a-4193e1ebca02" >
+				<ee:transform doc:name="Transform Message" doc:id="cdf10ea9-a579-4225-b6fb-da00d305f197" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="update-contacts" doc:id="292680cc-a955-40f2-969b-57e1dbc59eb5" >
+		<http:listener doc:name="Listener" doc:id="01ef6e44-80f5-43d6-a775-e31dfe2cd13f" config-ref="HTTP_Listener_config" path="/exp/update" allowedMethods="PUT"/>
+		<try doc:name="Try" doc:id="c9b5884d-e3be-4ab9-970b-2fa9999143e0" >
+			<http:request method="PUT" doc:name="Request" doc:id="18eaba0d-3c50-42e5-a820-558b4fbdb88e" config-ref="HTTP_Request_configuration" path="/process/update" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5d86a173-bb9f-4bba-9c76-4d4736b51f57" >
+					<ee:transform doc:name="Transform Message" doc:id="dc57b92f-5111-4a9d-9a13-8641796819af" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Logger" doc:id="00d4de17-439c-44d8-b186-e92ceccbd1ee" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c758708b-9595-4184-a3a9-5ac578246731" >
+				<ee:transform doc:name="Transform Message" doc:id="1d4c917c-0365-4705-9aa2-5ed1cc39ea6a" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="delete-contacts" doc:id="097b26ac-f8a0-4f9a-abee-fff47ebf4d17" >
+		<http:listener doc:name="Listener" doc:id="c2898ea9-7b38-4c3f-910d-4c38f8561310" config-ref="HTTP_Listener_config" path="/exp/delete" allowedMethods="DELETE"/>
+		<try doc:name="Try" doc:id="d4a6701a-a4d6-4e18-bae8-f0213e97f15f" >
+			<http:request method="DELETE" doc:name="Request" doc:id="3f74413d-cbf6-4894-80c6-208dc0ce8717" config-ref="HTTP_Request_configuration" path="/process/delete" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d1d5273c-d5d4-47ce-bb5a-a5d7c4d9ec16" >
+					<ee:transform doc:name="Transform Message" doc:id="07de90c0-48bc-4208-9ca7-04c863fcb0f9" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Logger" doc:id="c298cdd1-51ac-44f1-947b-6b4f2acad2a4" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="670dd30d-10d7-46bd-9415-f90ea24b9dca" >
+				<ee:transform doc:name="Transform Message" doc:id="8b9a5bc9-fe86-4d2a-8981-39d2b32316b6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

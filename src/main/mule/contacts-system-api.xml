@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="5391e1bc-4c2b-479d-9977-34dd531fff34" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="05539066-f9fe-4d95-a702-a115dc04208e" >
+		<db:generic-connection url="${db.url}" driverClassName="${db.class}" user="${db.username}" password="${db.password}" />
+	</db:config>
+	<flow name="contacts-project-system-apiFlow" doc:id="d4aa157f-03dc-472c-9ae2-c11f33180eab" >
+		<http:listener doc:name="Listener" doc:id="532e00d6-5154-4efc-8aa3-469e8e1c3985" config-ref="HTTP_Listener_config" path="/sys/local"/>
+		<try doc:name="Try" doc:id="cef3f9ab-3c48-4851-82ef-81bcb799b52b" >
+			<until-successful maxRetries="3" doc:name="Until Successful" doc:id="413d6fcd-5aa4-41d4-89c7-6fe3662b6320">
+			<db:select doc:name="Select" doc:id="8cef39ac-904c-40bf-9ab6-806e15c6995b" config-ref="Database_Config">
+			<db:sql><![CDATA[SELECT * FROM contacts
+]]></db:sql>
+		</db:select>
+		</until-successful>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0dfbbfb1-30e4-4cd2-8e22-df116df1c233" >
+					<ee:transform doc:name="Transform Message" doc:id="c2eb1e42-615f-4f80-a347-4835e75277d7" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="cce9f271-7bbe-4fee-8db1-1cd08199412e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="28d12e8b-6913-455a-b36b-50aa52861540" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="b18bef8c-8221-4565-aa7a-2d49fc8e7b21" >
+				<ee:transform doc:name="Transform Message" doc:id="e54b0693-1114-432e-9204-d4ead9bb3892" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="contacts-system-apiFlow" doc:id="56c9f091-227b-4dba-94b5-f6fb25e33f31" >
+		<http:listener doc:name="Listener" doc:id="fc5d4b2b-2b82-48b1-9eaf-99e1af39aff4" config-ref="HTTP_Listener_config" path="/sys/salesforce"/>
+		<try doc:name="Try" doc:id="2ecd58dc-3ae7-4d85-870c-48dfdd127520" >
+			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="2c7e5371-4a5f-43d2-be49-9fcff3a7ee8d">
+			<salesforce:query doc:name="Query" doc:id="077dc2c3-74d9-400e-bb1e-32ac04f91326" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[SELECT 
+    FirstName,
+    LastName,
+    Email,
+    Phone,
+    MailingStreet,
+    MailingCity,
+    MailingState,
+    MailingPostalCode,
+    MailingCountry,
+    AccountId,
+    LeadSource,
+    Title
+FROM Contact
+]]></salesforce:salesforce-query>
+		</salesforce:query>
+		</until-successful>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="1c0cc91d-d145-438b-be7e-3f1c5f11f42c" >
+					<ee:transform doc:name="Transform Message" doc:id="f5daf1fd-0a96-4a21-9933-79cf40081417" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Salesforce"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="22bb6911-2106-401f-b1c2-52b3c9864a35" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="60ca3625-c8ff-4161-b9b6-d3152a8db32d" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="70c462a9-3118-485c-ae5b-44a904cedb13" >
+				<ee:transform doc:name="Transform Message" doc:id="3111eae2-5902-4d05-9575-3586908f9681" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

@@ -1,0 +1,352 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="4f4d3b61-4655-400f-90e8-7748067c0a36" >
+		<salesforce:basic-connection username="${sf.username}" password="${sf.password}" securityToken="${sf.token}"/>
+	</salesforce:sfdc-config>
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="04d9e75e-5e97-4de8-a9cb-d5635ae88f15" >
+		<http:request-connection host="localhost" port="8081" />
+	</http:request-config>
+	<flow name="create-contact" doc:id="4f9cb4fe-a4f5-4b04-a1db-287f2f26d48e" >
+		<http:listener doc:name="Listener" doc:id="4eab3858-34dd-4a0f-b4e8-613dd6a6ad4b" config-ref="HTTP_Listener_config" path="/process/create" />
+		<try doc:name="Try" doc:id="d6bb6180-5174-4a79-8c5e-28ba785b1c89" >
+			<http:request method="GET" doc:name="Request" doc:id="817ce666-0076-4f0d-beef-c95e2aec20a1" config-ref="HTTP_Request_configuration" path="/sys/local" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5e0e9293-01af-4b6a-ad5b-831493c05782" >
+					<ee:transform doc:name="Transform Message" doc:id="575feb85-efcb-46ee-b82d-6d2538fbac14" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<set-variable value="#[payload]" doc:name="localContacts" doc:id="5bb8f2bc-24e9-461a-ad5d-bc533b904201" variableName="localContacts"/>
+		<try doc:name="Try" doc:id="cf00cbf0-e438-4380-8d1e-b25a6936f27d" >
+			<salesforce:query doc:name="Fetching Contact from Salesforce" doc:id="59dc687e-6664-438b-83f3-1d36b7292566" config-ref="Salesforce_Config">
+			<salesforce:salesforce-query><![CDATA[SELECT AccountId,Email FROM Contact]]></salesforce:salesforce-query>
+		</salesforce:query>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="45c1ed07-a5f9-4a20-97da-6e9ba756d2a0" >
+					<ee:transform doc:name="Transform Message" doc:id="0e4107f8-4619-474c-b380-ec74611ab800" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Converting to JSON" doc:id="52b7073f-98c6-4662-8ad6-7285009989a2">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="sfContacts" doc:id="367f4720-ee5e-4628-a6d6-1fdc95ad8881" variableName="sfContacts"/>
+		<ee:transform doc:name="Check if input Contact is present or not" doc:id="f986767c-c597-4868-912b-e4313891229d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+
+// Extract Salesforce emails
+var salesforceEmails = vars.sfContacts map ((item) -> item.Email)
+
+// Reference local contacts
+var xyz = vars.localContacts
+
+// Filter local contacts whose email is not in Salesforce
+var store= xyz filter ((localContact) -> not (salesforceEmails contains (localContact.email as String))
+)
+
+---
+store map((item)->{
+	"firstname": item.firstname,
+    "lastname": item.lastname,
+    "email": item.email,
+    "mailingstreet": item.mailingstreet,
+    "mailingcity": item.mailingcity,
+    "mailingstate": item.mailingstate,
+    "mailingcountry": item.mailingcountry,
+    "leadsource": item.leadsource,
+    "title":item.title,
+    "AccountId": item.AccountId,
+    "mailingpostalcode": item.mailingpostalcode,
+    "phone": item.phone
+})
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<choice doc:name="Choice" doc:id="e408d821-0e7d-4725-b3bc-8c66a3a255ed" >
+			<when expression="#[isEmpty(payload) == true]">
+				<set-payload value="Nothing to insert in Salesforce" doc:name="Set Payload" doc:id="303367ad-2867-43a3-9f77-816b9eeff0d3" />
+				<logger level="INFO" doc:name="Logger" doc:id="1d5c5ff8-ae1d-4814-8964-c16a4df24b8f" message="Array is empty"/>
+			</when>
+			<otherwise >
+				<try doc:name="Try" doc:id="cc8ef5e1-7e3f-4095-b27a-7a3f17493eee">
+			<salesforce:create type="Contact" doc:name="Create New Contact " doc:id="55af5f3f-2d18-4094-a9de-6d089c317548" config-ref="Salesforce_Config" />
+			<ee:transform doc:name="Transform Message" doc:id="b024ab82-f983-4ae3-a038-550c0f63703b" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Contact Created successfully"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<error-handler>
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="6a54f916-e6bc-471a-9f60-2affce1e3fc8">
+					<ee:transform doc:name="Cannot Create" doc:id="ae5c774d-44bd-489e-875e-dac2058c7b68">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Salesforce",
+	"message": payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="f93a402a-21f1-4d8a-96a7-e5cd62f629fd" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9ff5bcf7-06be-471c-b5c0-42de0fa4af09" >
+				<ee:transform doc:name="Transform Message" doc:id="c8f538b2-040b-4f7c-b5d3-729f1e5e6409" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="update-contact" doc:id="e0de814d-5060-46b6-b0af-22d4c24fd2f0" >
+		<http:listener doc:name="Listener" doc:id="e85b10a9-1e5c-4898-9f1e-d8d8da622046" config-ref="HTTP_Listener_config" path="/process/update" allowedMethods="PUT"/>
+		<set-variable value="#[payload]" doc:name="sfContact" doc:id="2c6fdf5f-b7ad-47f8-b910-2832246245bb" variableName="sfContact"/>
+		<try doc:name="Try" doc:id="acb507d7-feb9-4137-ad19-f2506114636d" >
+			<salesforce:query doc:name="Fetching Contacts from Salesforce" doc:id="96afba9b-06d4-4e5a-83be-d2ad71ef149d" config-ref="Salesforce_Config" >
+				<salesforce:salesforce-query ><![CDATA[SELECT Id FROM Contact where Id = ':conId']]></salesforce:salesforce-query>
+				<salesforce:parameters ><![CDATA[#[output application/json
+---
+{
+	"conId" : vars.sfContact.Id
+}]]]></salesforce:parameters>
+			</salesforce:query>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="727846b3-3e85-4e77-a5cc-02f79b743c60" >
+					<ee:transform doc:name="Transform Message" doc:id="a2b513c5-8002-4142-930e-0a48e51b252e" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="b9c259cb-7509-40c9-96e5-917d029a5519" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[
+	vars.sfContact
+]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="a1ee4863-6c57-4111-a7d4-d55723f7092e" >
+			<salesforce:update type="Contact" doc:name="Update" doc:id="cf9e0967-c1d7-46e8-b490-146b5de6ccc0" config-ref="Salesforce_Config">
+		</salesforce:update>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5996e117-b6c7-4109-8e89-5eb454c9f652" >
+					<ee:transform doc:name="Transform Message" doc:id="4cc164a2-76d2-4e79-91f4-289a54806c43" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="fded8ff3-7705-4838-b84e-5b95c5f05c7c" >
+			<when expression="#[payload.successful == true]">
+				<ee:transform doc:name="Transform Message" doc:id="b875b350-dbd6-41f6-b8f1-301ac53e4069">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Contact updated successfully"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="Transform Message" doc:id="8f6091b0-2e15-4d1e-8c4b-5fa9ca164ddc" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Errormessage: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="954be4f4-183e-4de7-b9d1-7441bb66c4b8" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7477e962-9262-406f-b20f-8464381b32de" >
+				<ee:transform doc:name="Transform Message" doc:id="6b45cfdd-082f-47f0-9d6d-8af2d87c72a8" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="delete-contact" doc:id="b8de01d5-8310-4134-a6db-5c4b098f51f0" >
+		<http:listener doc:name="Listener" doc:id="d0cd9176-4f43-459e-a5f6-3a333f771304" config-ref="HTTP_Listener_config" path="/process/delete" allowedMethods="DELETE" />
+		<set-variable value="#[payload]" doc:name="sfContact" doc:id="c17d061d-f1fb-4e25-870c-2ccd2b3e32de" variableName="sfContact" />
+		<try doc:name="Try" doc:id="02e34bdc-d495-4e3f-bd89-5838cead21fd" >
+			<salesforce:query doc:name="Query" doc:id="128dad2e-26b1-40fe-97ba-17a87b9e9afb" config-ref="Salesforce_Config" >
+				<salesforce:salesforce-query ><![CDATA[SELECT Id FROM Contact where Id = ':conId']]></salesforce:salesforce-query>
+				<salesforce:parameters ><![CDATA[#[output application/json
+---
+{
+	"conId" : vars.sfContact.Id
+}]]]></salesforce:parameters>
+			</salesforce:query>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c6a25c60-ae50-4cde-9e0e-af85565afe5b" >
+					<ee:transform doc:name="Transform Message" doc:id="c99b3df2-6874-4f4a-8a14-196357e98d77" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<ee:transform doc:name="Transform Message" doc:id="f377b58e-4cdb-4b27-96c8-e4b733cabd7e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+[
+	"Id": vars.sfContact.Id
+]]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="ea2d5ba7-6a48-4a8a-9c98-49b0e354a258" >
+			<salesforce:delete doc:name="Delete" doc:id="83ff43b5-0604-43bf-beab-cdba4fd0da92" config-ref="Salesforce_Config">
+			<salesforce:ids><![CDATA[#[payload.Id]]]></salesforce:ids>
+		</salesforce:delete>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="00644863-58b9-42df-8224-58d0933f2302" >
+					<ee:transform doc:name="Transform Message" doc:id="a9685b66-eea2-40c5-af77-54d63afd689e">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Errormessage: error.detailedDescription
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<choice doc:name="Choice" doc:id="f9ba768f-e2b9-452f-94db-fdab986faff0">
+			<when expression="#[payload.successful== true]">
+				<ee:transform doc:name="Transform Message" doc:id="f163cf06-67c0-405b-8048-7cf87b0418ed">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message": "Contact Deleted successfully"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="d8422d21-0ee9-4a49-b09c-aebc830e97ee">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Errormessage: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+		<logger level="INFO" doc:name="Logger" doc:id="5489a853-0025-4d49-9252-f3072d617fb1" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="33446db1-72ec-43ae-9dc7-f4ff53d75eb7" >
+				<ee:transform doc:name="Transform Message" doc:id="88d51c78-8a3a-4bb8-a22c-c454f4244997" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

@@ -1,0 +1,16 @@
+http:
+  port: "8081"
+  
+
+  
+db:
+  url: "jdbc:postgresql://localhost:5432/salesforce"
+  class: "org.postgresql.Driver"
+  username: "postgres"
+  password: "postgres"
+  
+  
+sf:
+  username: "pranjal.choria293@agentforce.com"  
+  password: "Pranjal@27"
+  token: "0bEbOsQkT9g0tuHCVq5SUh71"
