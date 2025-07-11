@@ -7,19 +7,13 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
-	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="4f4d3b61-4655-400f-90e8-7748067c0a36" >
-		<salesforce:basic-connection username="${sf.username}" password="${sf.password}" securityToken="${sf.token}"/>
-	</salesforce:sfdc-config>
-	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="04d9e75e-5e97-4de8-a9cb-d5635ae88f15" >
-		<http:request-connection host="localhost" port="8081" />
-	</http:request-config>
-	<flow name="create-contact" doc:id="4f9cb4fe-a4f5-4b04-a1db-287f2f26d48e" >
-		<http:listener doc:name="Listener" doc:id="4eab3858-34dd-4a0f-b4e8-613dd6a6ad4b" config-ref="HTTP_Listener_config" path="/process/create" />
+	<flow name="create-contact-salesforce" doc:id="4f9cb4fe-a4f5-4b04-a1db-287f2f26d48e" >
+		<http:listener doc:name="Listener" doc:id="4eab3858-34dd-4a0f-b4e8-613dd6a6ad4b" path="/process/createsf" config-ref="HTTP_Listener_config1"/>
 		<try doc:name="Try" doc:id="d6bb6180-5174-4a79-8c5e-28ba785b1c89" >
-			<http:request method="GET" doc:name="Request" doc:id="817ce666-0076-4f0d-beef-c95e2aec20a1" config-ref="HTTP_Request_configuration" path="/sys/local" />
+			<http:request method="GET" doc:name="Requesting contacts from systemAPI" doc:id="817ce666-0076-4f0d-beef-c95e2aec20a1" path="/sys/local" config-ref="HTTP_Request_configuration1"/>
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5e0e9293-01af-4b6a-ad5b-831493c05782" >
-					<ee:transform doc:name="Transform Message" doc:id="575feb85-efcb-46ee-b82d-6d2538fbac14" >
+					<ee:transform doc:name="Error Message" doc:id="575feb85-efcb-46ee-b82d-6d2538fbac14" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -35,12 +29,12 @@ output application/json
 		</try>
 		<set-variable value="#[payload]" doc:name="localContacts" doc:id="5bb8f2bc-24e9-461a-ad5d-bc533b904201" variableName="localContacts"/>
 		<try doc:name="Try" doc:id="cf00cbf0-e438-4380-8d1e-b25a6936f27d" >
-			<salesforce:query doc:name="Fetching Contact from Salesforce" doc:id="59dc687e-6664-438b-83f3-1d36b7292566" config-ref="Salesforce_Config">
+			<salesforce:query doc:name="Fetching Contact from Salesforce" doc:id="59dc687e-6664-438b-83f3-1d36b7292566" config-ref="Salesforce_Config1">
 			<salesforce:salesforce-query><![CDATA[SELECT AccountId,Email FROM Contact]]></salesforce:salesforce-query>
 		</salesforce:query>
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="45c1ed07-a5f9-4a20-97da-6e9ba756d2a0" >
-					<ee:transform doc:name="Transform Message" doc:id="0e4107f8-4619-474c-b380-ec74611ab800" >
+					<ee:transform doc:name="Error Message" doc:id="0e4107f8-4619-474c-b380-ec74611ab800" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -67,31 +61,24 @@ payload]]></ee:set-payload>
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
-
-// Extract Salesforce emails
 var salesforceEmails = vars.sfContacts map ((item) -> item.Email)
-
-// Reference local contacts
 var xyz = vars.localContacts
-
-// Filter local contacts whose email is not in Salesforce
 var store= xyz filter ((localContact) -> not (salesforceEmails contains (localContact.email as String))
 )
-
 ---
 store map((item)->{
 	"firstname": item.firstname,
-    "lastname": item.lastname,
-    "email": item.email,
-    "mailingstreet": item.mailingstreet,
-    "mailingcity": item.mailingcity,
-    "mailingstate": item.mailingstate,
-    "mailingcountry": item.mailingcountry,
-    "leadsource": item.leadsource,
-    "title":item.title,
-    "AccountId": item.AccountId,
-    "mailingpostalcode": item.mailingpostalcode,
-    "phone": item.phone
+	"lastname": item.lastname,
+	"email": item.email,
+	"mailingstreet": item.mailingstreet,
+	"mailingcity": item.mailingcity,
+	"mailingstate": item.mailingstate,
+	"mailingcountry": item.mailingcountry,
+	"leadsource": item.leadsource,
+	"title": item.title,
+	"AccountId": item.AccountId,
+	"mailingpostalcode": item.mailingpostalcode,
+	"phone": item.phone
 })
 ]]></ee:set-payload>
 			</ee:message>
@@ -103,8 +90,8 @@ store map((item)->{
 			</when>
 			<otherwise >
 				<try doc:name="Try" doc:id="cc8ef5e1-7e3f-4095-b27a-7a3f17493eee">
-			<salesforce:create type="Contact" doc:name="Create New Contact " doc:id="55af5f3f-2d18-4094-a9de-6d089c317548" config-ref="Salesforce_Config" />
-			<ee:transform doc:name="Transform Message" doc:id="b024ab82-f983-4ae3-a038-550c0f63703b" >
+			<salesforce:create type="Contact" doc:name="Create New Contact " doc:id="55af5f3f-2d18-4094-a9de-6d089c317548" config-ref="Salesforce_Config1"/>
+			<ee:transform doc:name="Success Message" doc:id="b024ab82-f983-4ae3-a038-550c0f63703b" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -135,35 +122,34 @@ output application/json
 		<logger level="INFO" doc:name="Logger" doc:id="f93a402a-21f1-4d8a-96a7-e5cd62f629fd" />
 		<error-handler >
 			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="9ff5bcf7-06be-471c-b5c0-42de0fa4af09" >
-				<ee:transform doc:name="Transform Message" doc:id="c8f538b2-040b-4f7c-b5d3-729f1e5e6409" >
+				<ee:transform doc:name="Error Message" doc:id="c8f538b2-040b-4f7c-b5d3-729f1e5e6409" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
-
 {
-	error: payload
+	"Error": error.detailedDescription
 }]]></ee:set-payload>
 					</ee:message>
 				</ee:transform>
 			</on-error-propagate>
 		</error-handler>
 	</flow>
-	<flow name="update-contact" doc:id="e0de814d-5060-46b6-b0af-22d4c24fd2f0" >
-		<http:listener doc:name="Listener" doc:id="e85b10a9-1e5c-4898-9f1e-d8d8da622046" config-ref="HTTP_Listener_config" path="/process/update" allowedMethods="PUT"/>
-		<set-variable value="#[payload]" doc:name="sfContact" doc:id="2c6fdf5f-b7ad-47f8-b910-2832246245bb" variableName="sfContact"/>
+	<flow name="update-contact-salesforce" doc:id="e0de814d-5060-46b6-b0af-22d4c24fd2f0" >
+		<http:listener doc:name="Listener" doc:id="e85b10a9-1e5c-4898-9f1e-d8d8da622046" path="/process/updatesf" allowedMethods="PUT" config-ref="HTTP_Listener_config1">
+		</http:listener>
 		<try doc:name="Try" doc:id="acb507d7-feb9-4137-ad19-f2506114636d" >
-			<salesforce:query doc:name="Fetching Contacts from Salesforce" doc:id="96afba9b-06d4-4e5a-83be-d2ad71ef149d" config-ref="Salesforce_Config" >
+			<salesforce:query doc:name="Fetching Contacts from Salesforce" doc:id="96afba9b-06d4-4e5a-83be-d2ad71ef149d" config-ref="Salesforce_Config1">
 				<salesforce:salesforce-query ><![CDATA[SELECT Id FROM Contact where Id = ':conId']]></salesforce:salesforce-query>
 				<salesforce:parameters ><![CDATA[#[output application/json
 ---
 {
-	"conId" : vars.sfContact.Id
+	"conId" : vars.vals.Id
 }]]]></salesforce:parameters>
 			</salesforce:query>
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="727846b3-3e85-4e77-a5cc-02f79b743c60" >
-					<ee:transform doc:name="Transform Message" doc:id="a2b513c5-8002-4142-930e-0a48e51b252e" >
+					<ee:transform doc:name="Error Message" doc:id="a2b513c5-8002-4142-930e-0a48e51b252e" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -177,22 +163,22 @@ output application/json
 				</on-error-propagate>
 			</error-handler>
 		</try>
-		<ee:transform doc:name="Transform Message" doc:id="b9c259cb-7509-40c9-96e5-917d029a5519" >
+		<ee:transform doc:name="Converting into Array" doc:id="b9c259cb-7509-40c9-96e5-917d029a5519" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
 [
-	vars.sfContact
+	vars.vals
 ]]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 		<try doc:name="Try" doc:id="a1ee4863-6c57-4111-a7d4-d55723f7092e" >
-			<salesforce:update type="Contact" doc:name="Update" doc:id="cf9e0967-c1d7-46e8-b490-146b5de6ccc0" config-ref="Salesforce_Config">
+			<salesforce:update type="Contact" doc:name="Update Contact in Salesforce" doc:id="cf9e0967-c1d7-46e8-b490-146b5de6ccc0" config-ref="Salesforce_Config1">
 		</salesforce:update>
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5996e117-b6c7-4109-8e89-5eb454c9f652" >
-					<ee:transform doc:name="Transform Message" doc:id="4cc164a2-76d2-4e79-91f4-289a54806c43" >
+					<ee:transform doc:name="Error Message" doc:id="4cc164a2-76d2-4e79-91f4-289a54806c43" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -208,7 +194,7 @@ output application/json
 		</try>
 		<choice doc:name="Choice" doc:id="fded8ff3-7705-4838-b84e-5b95c5f05c7c" >
 			<when expression="#[payload.successful == true]">
-				<ee:transform doc:name="Transform Message" doc:id="b875b350-dbd6-41f6-b8f1-301ac53e4069">
+				<ee:transform doc:name="Success Message" doc:id="b875b350-dbd6-41f6-b8f1-301ac53e4069">
 			<ee:message>
 				<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -220,7 +206,7 @@ output application/json
 		</ee:transform>
 			</when>
 			<otherwise >
-				<ee:transform doc:name="Transform Message" doc:id="8f6091b0-2e15-4d1e-8c4b-5fa9ca164ddc" >
+				<ee:transform doc:name="Error Message" doc:id="8f6091b0-2e15-4d1e-8c4b-5fa9ca164ddc" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -235,7 +221,7 @@ output application/json
 		<logger level="INFO" doc:name="Logger" doc:id="954be4f4-183e-4de7-b9d1-7441bb66c4b8" />
 		<error-handler >
 			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="7477e962-9262-406f-b20f-8464381b32de" >
-				<ee:transform doc:name="Transform Message" doc:id="6b45cfdd-082f-47f0-9d6d-8af2d87c72a8" >
+				<ee:transform doc:name="Error Message" doc:id="6b45cfdd-082f-47f0-9d6d-8af2d87c72a8" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -249,21 +235,20 @@ output application/json
 			</on-error-propagate>
 		</error-handler>
 	</flow>
-	<flow name="delete-contact" doc:id="b8de01d5-8310-4134-a6db-5c4b098f51f0" >
-		<http:listener doc:name="Listener" doc:id="d0cd9176-4f43-459e-a5f6-3a333f771304" config-ref="HTTP_Listener_config" path="/process/delete" allowedMethods="DELETE" />
-		<set-variable value="#[payload]" doc:name="sfContact" doc:id="c17d061d-f1fb-4e25-870c-2ccd2b3e32de" variableName="sfContact" />
+	<flow name="delete-contact-salesforce" doc:id="b8de01d5-8310-4134-a6db-5c4b098f51f0" >
+		<http:listener doc:name="Listener" doc:id="d0cd9176-4f43-459e-a5f6-3a333f771304" path="/process/deletesf" allowedMethods="DELETE" config-ref="HTTP_Listener_config1"/>
 		<try doc:name="Try" doc:id="02e34bdc-d495-4e3f-bd89-5838cead21fd" >
-			<salesforce:query doc:name="Query" doc:id="128dad2e-26b1-40fe-97ba-17a87b9e9afb" config-ref="Salesforce_Config" >
+			<salesforce:query doc:name="Getting ID from Salesforce" doc:id="128dad2e-26b1-40fe-97ba-17a87b9e9afb" config-ref="Salesforce_Config1">
 				<salesforce:salesforce-query ><![CDATA[SELECT Id FROM Contact where Id = ':conId']]></salesforce:salesforce-query>
 				<salesforce:parameters ><![CDATA[#[output application/json
 ---
 {
-	"conId" : vars.sfContact.Id
+	"conId" : vars.vals.Id
 }]]]></salesforce:parameters>
 			</salesforce:query>
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="c6a25c60-ae50-4cde-9e0e-af85565afe5b" >
-					<ee:transform doc:name="Transform Message" doc:id="c99b3df2-6874-4f4a-8a14-196357e98d77" >
+					<ee:transform doc:name="Error Message" doc:id="c99b3df2-6874-4f4a-8a14-196357e98d77" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -277,18 +262,18 @@ output application/json
 				</on-error-propagate>
 			</error-handler>
 		</try>
-		<ee:transform doc:name="Transform Message" doc:id="f377b58e-4cdb-4b27-96c8-e4b733cabd7e" >
+		<ee:transform doc:name="Converting into Array" doc:id="f377b58e-4cdb-4b27-96c8-e4b733cabd7e" >
 			<ee:message >
 				<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
 ---
 [
-	"Id": vars.sfContact.Id
+	"Id": vars.vals.Id
 ]]]></ee:set-payload>
 			</ee:message>
 		</ee:transform>
 		<try doc:name="Try" doc:id="ea2d5ba7-6a48-4a8a-9c98-49b0e354a258" >
-			<salesforce:delete doc:name="Delete" doc:id="83ff43b5-0604-43bf-beab-cdba4fd0da92" config-ref="Salesforce_Config">
+			<salesforce:delete doc:name="Deleting Contact" doc:id="83ff43b5-0604-43bf-beab-cdba4fd0da92" config-ref="Salesforce_Config1">
 			<salesforce:ids><![CDATA[#[payload.Id]]]></salesforce:ids>
 		</salesforce:delete>
 			<error-handler >
@@ -308,7 +293,7 @@ output application/json
 		</try>
 		<choice doc:name="Choice" doc:id="f9ba768f-e2b9-452f-94db-fdab986faff0">
 			<when expression="#[payload.successful== true]">
-				<ee:transform doc:name="Transform Message" doc:id="f163cf06-67c0-405b-8048-7cf87b0418ed">
+				<ee:transform doc:name="Success Message" doc:id="f163cf06-67c0-405b-8048-7cf87b0418ed">
 					<ee:message>
 						<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -320,7 +305,7 @@ output application/json
 				</ee:transform>
 			</when>
 			<otherwise>
-				<ee:transform doc:name="Transform Message" doc:id="d8422d21-0ee9-4a49-b09c-aebc830e97ee">
+				<ee:transform doc:name="Error Message" doc:id="d8422d21-0ee9-4a49-b09c-aebc830e97ee">
 					<ee:message>
 						<ee:set-payload><![CDATA[%dw 2.0
 output application/json
@@ -335,7 +320,203 @@ output application/json
 		<logger level="INFO" doc:name="Logger" doc:id="5489a853-0025-4d49-9252-f3072d617fb1" />
 		<error-handler >
 			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="33446db1-72ec-43ae-9dc7-f4ff53d75eb7" >
-				<ee:transform doc:name="Transform Message" doc:id="88d51c78-8a3a-4bb8-a22c-c454f4244997" >
+				<ee:transform doc:name="Error Message" doc:id="88d51c78-8a3a-4bb8-a22c-c454f4244997" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="readContacts" doc:id="0ec26cc2-4dec-4fe5-8882-97e130f1ce0a" >
+		<http:listener doc:name="Listener" doc:id="e5758b3a-b918-4bc6-a62a-bf09299e6698" config-ref="HTTP_Listener_config1" path="/process/readContacts"/>
+		<flow-ref doc:name="Flow Reference" doc:id="c53e4aad-5972-41ec-9291-7dd21e9a5d4b" name="contacts-project-system-apiFlow"/>
+		<set-variable value="#[payload]" doc:name="localContact" doc:id="1246fd68-0496-4cef-99b9-4c162c9e211a" variableName="localContact"/>
+		<flow-ref doc:name="Flow Reference" doc:id="945a9073-d116-46eb-a99a-34eb517bf91e" name="contacts-system-apiFlow"/>
+		<set-variable value="#[payload]" doc:name="Set Variable" doc:id="f81bd86f-fe25-45ba-8a7a-9b7cfde4b18e" variableName="sfContacts"/>
+		<ee:transform doc:name="Transform Message" doc:id="dfa0f641-7cfb-435f-81f4-1b71e6d2c8ac" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+var salesforceEmails = vars.sfContacts map ((item) -> item.Email)
+var xyz = vars.localContact
+var store= xyz filter ((localContact) ->  (salesforceEmails contains (localContact.email as String))
+)
+---
+store map((item)->{
+	"firstname": item.firstname,
+	"lastname": item.lastname,
+	"email": item.email,
+	"mailingstreet": item.mailingstreet,
+	"mailingcity": item.mailingcity,
+	"mailingstate": item.mailingstate,
+	"mailingcountry": item.mailingcountry,
+	"leadsource": item.leadsource,
+	"title": item.title,
+	"AccountId": item.AccountId,
+	"mailingpostalcode": item.mailingpostalcode,
+	"phone": item.phone
+})
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="cedf8ddf-cfba-4388-8c2c-86f8ef6f43da" />
+	</flow>
+	<flow name="create-contact-database" doc:id="ef9b824b-575d-4244-94bc-55f8c5beb177" >
+		<http:listener doc:name="Listener" doc:id="3b44513e-5e55-43e0-a2d6-59c1ae03b1c7" path="/process/create" config-ref="HTTP_Listener_config1"/>
+		<set-variable value="#[payload]" doc:name="vals" doc:id="fd502787-5d58-44d9-b628-98f1f6276758" variableName="vals"/>
+		<ee:transform doc:name="Transform Message" doc:id="8a882843-19b8-416b-b39a-01d712bfd81f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<try doc:name="Try" doc:id="80146802-c746-46d8-84fe-e52dce6212dc" >
+			<db:insert doc:name="Insert" doc:id="9826b3ff-949c-4248-a098-cdd89f6ed798" config-ref="Database_Config1">
+			<db:sql><![CDATA[INSERT INTO public.contacts(
+	 firstname, lastname, email, mailingstreet, mailingcity, mailingstate, mailingcountry, leadsource, title, accountid, mailingpostalcode, phone,updated_at)
+	VALUES (:firstname, :lastname, :email, :mailingstreet,:mailingcity, :mailingstate, :mailingcountry, :leadsource, :title, :accountid , :mailingpostalcode, :phone, CURRENT_TIMESTAMP);]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	firstname:payload.FirstName,
+	lastname:payload.LastName,
+	email:payload.Email,
+	mailingstreet:payload.MailingStreet,
+	mailingcity:payload.MailingCity,
+	mailingstate: payload.MailingState,
+	mailingcountry:payload.MailingCountry,
+	leadsource:payload.LeadSource,
+	title:payload.Title,
+	accountid:payload.AccountId,
+	mailingpostalcode:payload.MailingPostalCode,
+	phone:payload.Phone
+	
+	
+}]]]></db:input-parameters>
+		</db:insert>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f9f487f7-0d75-4da1-bb9c-4280f0b90166" >
+					<ee:transform doc:name="Error Message" doc:id="bf99f4ab-2e0a-4c60-9b66-7114519f604f" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<flow-ref doc:name="Flow Reference" doc:id="78751519-46af-40bd-9e67-c4017b8c6e98" name="create-contact-salesforce"/>
+	</flow>
+	<flow name="update-contact-database" doc:id="554bcd20-5cb1-4fee-b401-e3255a6ab902" >
+		<http:listener doc:name="Listener" doc:id="235f6680-f8fa-43ac-8562-41e13eaaf405" path="/process/update" config-ref="HTTP_Listener_config1">
+			<http:response >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"id" : attributes.queryParams
+}]]]></http:headers>
+			</http:response>
+			<http:error-response >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"" : ""
+}]]]></http:headers>
+			</http:error-response>
+		</http:listener>
+		<set-variable value="#[attributes.queryParams.id]" doc:name="id" doc:id="6b6a76be-baca-4e57-acc7-ea5e22f6ad81" variableName="id" />
+		<set-variable value="#[payload]" doc:name="vals" doc:id="6bc35e98-b34f-48f1-af71-2d87c15a30d3" variableName="vals"/>
+		<try doc:name="Try" doc:id="ceefa7fd-4534-42cd-94b1-3faa66f50550" >
+			<db:update doc:name="Update" doc:id="eb22409b-ceef-48d0-817b-c94405953732" config-ref="Database_Config1">
+			<db:sql><![CDATA[UPDATE contacts
+	SET firstname=:firstname, lastname=:lastname, mailingstreet=:mailingstreet, mailingcity=:mailingcity, mailingstate=:mailingstate, mailingcountry=:mailingcountry, leadsource=:leadsource, title=:title, mailingpostalcode=:mailingpostalcode, phone=:phone, updated_at=CURRENT_TIMESTAMP
+	WHERE c_id=:id;]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	firstname:payload.FirstName,
+	lastname:payload.LastName,
+	id: vars.id,
+	mailingstreet:payload.MailingStreet,
+	mailingcity:payload.MailingCity,
+	mailingstate: payload.MailingState,
+	mailingcountry:payload.MailingCountry,
+	leadsource:payload.LeadSource,
+	title:payload.Title,
+	mailingpostalcode:payload.MailingPostalCode,
+	phone:payload.Phone
+	
+	
+}]]]></db:input-parameters>
+		</db:update>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5bdeb287-1422-4fe9-bd08-5e8c855895ab" >
+					<ee:transform doc:name="Error Message" doc:id="09be7dca-78e4-45ec-b17e-c029c71b4334" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<flow-ref doc:name="Flow Reference" doc:id="c17f2344-b4a2-4e46-811b-49fe309bd93b" name="update-contact-salesforce"/>
+	</flow>
+	<flow name="delete-contact-database" doc:id="f9b64d24-92e6-43ed-96ec-86a878eac78d" >
+		<http:listener doc:name="Listener" doc:id="8cf9093f-bd9d-4936-bca5-d3e33be5f8d0" path="/process/delete" config-ref="HTTP_Listener_config1">
+			<http:response >
+				<http:headers ><![CDATA[#[output application/java
+---
+{
+	"id" : attributes.queryParams
+}]]]></http:headers>
+			</http:response>
+		</http:listener>
+		<set-variable value="#[attributes.queryParams.id]" doc:name="id" doc:id="caf817b0-99c2-4343-bc3a-01d6fe98f548" variableName="id" />
+		<set-variable value="#[payload]" doc:name="vals" doc:id="57b90216-97a5-43ef-8a73-e321d60a48a3" variableName="vals" />
+		<try doc:name="Try" doc:id="de00d68b-7121-4c40-a5ed-db9a4adc9697" >
+			<db:delete doc:name="Delete" doc:id="408d4aa7-423f-46bb-9882-92f5a0419af8" config-ref="Database_Config1">
+			<db:sql><![CDATA[delete from contacts where c_id=:id]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	id: vars.id
+}]]]></db:input-parameters>
+		</db:delete>
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f49dcbef-7d9f-4857-b124-d01e684e589c" >
+					<ee:transform doc:name="Error Message" doc:id="3ccf470c-4037-4b49-a706-32d353fac178" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+{
+	error: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<flow-ref doc:name="Flow Reference" doc:id="8baba008-56d8-42ac-acf0-44b0f3d43d5c" name="delete-contact-salesforce"/>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="06a3928a-d472-4ac5-9093-3fd84643278d" >
+				<ee:transform doc:name="Error Message" doc:id="3e646183-a5e3-4237-8d5c-a65b9afa5ef1" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json

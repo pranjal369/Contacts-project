@@ -7,24 +7,18 @@ http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/htt
 http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
 http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
 http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
-	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="5391e1bc-4c2b-479d-9977-34dd531fff34" >
-		<http:listener-connection host="0.0.0.0" port="${http.port}" />
-	</http:listener-config>
-	<db:config name="Database_Config" doc:name="Database Config" doc:id="05539066-f9fe-4d95-a702-a115dc04208e" >
-		<db:generic-connection url="${db.url}" driverClassName="${db.class}" user="${db.username}" password="${db.password}" />
-	</db:config>
 	<flow name="contacts-project-system-apiFlow" doc:id="d4aa157f-03dc-472c-9ae2-c11f33180eab" >
-		<http:listener doc:name="Listener" doc:id="532e00d6-5154-4efc-8aa3-469e8e1c3985" config-ref="HTTP_Listener_config" path="/sys/local"/>
+		<http:listener doc:name="Listener" doc:id="532e00d6-5154-4efc-8aa3-469e8e1c3985" path="/sys/local" config-ref="HTTP_Listener_config1"/>
 		<try doc:name="Try" doc:id="cef3f9ab-3c48-4851-82ef-81bcb799b52b" >
 			<until-successful maxRetries="3" doc:name="Until Successful" doc:id="413d6fcd-5aa4-41d4-89c7-6fe3662b6320">
-			<db:select doc:name="Select" doc:id="8cef39ac-904c-40bf-9ab6-806e15c6995b" config-ref="Database_Config">
+			<db:select doc:name="Getting database contacts" doc:id="8cef39ac-904c-40bf-9ab6-806e15c6995b" config-ref="Database_Config1">
 			<db:sql><![CDATA[SELECT * FROM contacts
 ]]></db:sql>
 		</db:select>
 		</until-successful>
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="0dfbbfb1-30e4-4cd2-8e22-df116df1c233" >
-					<ee:transform doc:name="Transform Message" doc:id="c2eb1e42-615f-4f80-a347-4835e75277d7" >
+					<ee:transform doc:name="Error Message" doc:id="c2eb1e42-615f-4f80-a347-4835e75277d7" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -62,10 +56,10 @@ output application/json
 		</error-handler>
 	</flow>
 	<flow name="contacts-system-apiFlow" doc:id="56c9f091-227b-4dba-94b5-f6fb25e33f31" >
-		<http:listener doc:name="Listener" doc:id="fc5d4b2b-2b82-48b1-9eaf-99e1af39aff4" config-ref="HTTP_Listener_config" path="/sys/salesforce"/>
+		<http:listener doc:name="Listener" doc:id="fc5d4b2b-2b82-48b1-9eaf-99e1af39aff4" path="/sys/salesforce" config-ref="HTTP_Listener_config1"/>
 		<try doc:name="Try" doc:id="2ecd58dc-3ae7-4d85-870c-48dfdd127520" >
 			<until-successful maxRetries="5" doc:name="Until Successful" doc:id="2c7e5371-4a5f-43d2-be49-9fcff3a7ee8d">
-			<salesforce:query doc:name="Query" doc:id="077dc2c3-74d9-400e-bb1e-32ac04f91326" config-ref="Salesforce_Config">
+			<salesforce:query doc:name="Query" doc:id="077dc2c3-74d9-400e-bb1e-32ac04f91326" config-ref="Salesforce_Config1">
 			<salesforce:salesforce-query><![CDATA[SELECT 
     FirstName,
     LastName,

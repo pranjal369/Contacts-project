@@ -1,0 +1,4 @@
+%dw 2.0
+
+type auto_0ec26cc2_4dec_4fe5_8882_97e130f1ce0a_Output_Variables_localContact = {| Error: String | Null |}
+

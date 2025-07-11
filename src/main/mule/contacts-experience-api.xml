@@ -1,17 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
-	xmlns="http://www.mulesoft.org/schema/mule/core"
-	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
 http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
-http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
-	<flow name="create-contacts" doc:id="05a2c0bd-b980-4352-b0b9-e7af52ac29f0" >
-		<http:listener doc:name="Listener" doc:id="0119ce8a-6635-4340-9477-ee0113114635" config-ref="HTTP_Listener_config" path="/exp/create"/>
-		<try doc:name="Try" doc:id="a80e50d5-b553-4090-9003-d13cd193772c" >
-			<http:request method="GET" doc:name="Request" doc:id="9e6e46a4-3c9b-48e0-a774-ee2b91094beb" config-ref="HTTP_Request_configuration" path="/process/create" />
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<flow name="contacts-experience-apiFlow" doc:id="89ea6f9c-e71f-4f8a-865c-ff8804cbcbbc" >
+		<http:listener doc:name="Listener" doc:id="4e02f9be-f2f0-404b-9d13-4f65d1b57c21" config-ref="HTTP_Listener_config1" path="/exp/allContacts"/>
+		<try doc:name="Try" doc:id="5c50e7ea-2700-4490-857e-4cddf235979d" >
+			<flow-ref doc:name="Flow Reference" doc:id="804aeb19-45d1-46fe-a07c-4ff78df427f3" name="readContacts" />
 			<error-handler >
-				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="33498c97-eb89-4782-b559-67462d5a5ae6" >
-					<ee:transform doc:name="Transform Message" doc:id="c97e05a6-9e08-4aad-80bf-3e356a21c5a1" >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="23504fee-450c-4b47-94e6-67cd491abb7b" >
+					<ee:transform doc:name="Transform Message" doc:id="7b354334-544f-4db3-937d-929b225985ac" >
 						<ee:message >
 							<ee:set-payload ><![CDATA[%dw 2.0
 output application/json
@@ -25,27 +27,12 @@ output application/json
 				</on-error-propagate>
 			</error-handler>
 		</try>
-		<logger level="INFO" doc:name="Logger" doc:id="f81faaa0-594f-4cf1-b899-6b79e8caa2b2" />
-		<error-handler >
-			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="cddf2644-fee6-4f8f-bd8a-4193e1ebca02" >
-				<ee:transform doc:name="Transform Message" doc:id="cdf10ea9-a579-4225-b6fb-da00d305f197" >
-					<ee:message >
-						<ee:set-payload ><![CDATA[%dw 2.0
-output application/json
----
-{
-	"Error": "Could not connect to Database",
-	message: payload
-}]]></ee:set-payload>
-					</ee:message>
-				</ee:transform>
-			</on-error-propagate>
-		</error-handler>
+		<logger level="INFO" doc:name="Logger" doc:id="25e1d10f-3cdf-4edb-b4df-9b4f82ab506e" />
 	</flow>
-	<flow name="update-contacts" doc:id="292680cc-a955-40f2-969b-57e1dbc59eb5" >
-		<http:listener doc:name="Listener" doc:id="01ef6e44-80f5-43d6-a775-e31dfe2cd13f" config-ref="HTTP_Listener_config" path="/exp/update" allowedMethods="PUT"/>
+	<flow name="create-contacts" doc:id="292680cc-a955-40f2-969b-57e1dbc59eb5" >
+		<http:listener doc:name="Listener" doc:id="01ef6e44-80f5-43d6-a775-e31dfe2cd13f" path="/exp/create" allowedMethods="POST" config-ref="HTTP_Listener_config1"/>
 		<try doc:name="Try" doc:id="c9b5884d-e3be-4ab9-970b-2fa9999143e0" >
-			<http:request method="PUT" doc:name="Request" doc:id="18eaba0d-3c50-42e5-a820-558b4fbdb88e" config-ref="HTTP_Request_configuration" path="/process/update" />
+			<flow-ref doc:name="Referring to Create database" doc:id="c98986c6-aa02-433c-8786-ff739d0014c1" name="create-contact-database" />
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="5d86a173-bb9f-4bba-9c76-4d4736b51f57" >
 					<ee:transform doc:name="Transform Message" doc:id="dc57b92f-5111-4a9d-9a13-8641796819af" >
@@ -80,9 +67,9 @@ output application/json
 		</error-handler>
 	</flow>
 	<flow name="delete-contacts" doc:id="097b26ac-f8a0-4f9a-abee-fff47ebf4d17" >
-		<http:listener doc:name="Listener" doc:id="c2898ea9-7b38-4c3f-910d-4c38f8561310" config-ref="HTTP_Listener_config" path="/exp/delete" allowedMethods="DELETE"/>
+		<http:listener doc:name="Listener" doc:id="c2898ea9-7b38-4c3f-910d-4c38f8561310" path="/exp/delete" allowedMethods="DELETE" config-ref="HTTP_Listener_config1"/>
 		<try doc:name="Try" doc:id="d4a6701a-a4d6-4e18-bae8-f0213e97f15f" >
-			<http:request method="DELETE" doc:name="Request" doc:id="3f74413d-cbf6-4894-80c6-208dc0ce8717" config-ref="HTTP_Request_configuration" path="/process/delete" />
+			<flow-ref doc:name="Referring to Delete database" doc:id="fcb099c4-95d0-4978-8336-21a0f42b464b" name="delete-contact-database" />
 			<error-handler >
 				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="d1d5273c-d5d4-47ce-bb5a-a5d7c4d9ec16" >
 					<ee:transform doc:name="Transform Message" doc:id="07de90c0-48bc-4208-9ca7-04c863fcb0f9" >
@@ -103,6 +90,43 @@ output application/json
 		<error-handler >
 			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="670dd30d-10d7-46bd-9415-f90ea24b9dca" >
 				<ee:transform doc:name="Transform Message" doc:id="8b9a5bc9-fe86-4d2a-8981-39d2b32316b6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="update-contacts1" doc:id="d124fdb0-1857-4c19-ae9f-481b9b3f2c54" >
+		<http:listener doc:name="Listener" doc:id="62f96f82-781c-4769-800e-7d7443070237" path="/exp/update" allowedMethods="PUT" config-ref="HTTP_Listener_config1"/>
+		<try doc:name="Try" doc:id="84c7400d-e21c-45ca-b5bf-7c736bdaa8b7" >
+			<flow-ref doc:name="Referring to Update database" doc:id="944dd0b6-0e59-4487-943e-b5c649e57c2a" name="update-contact-database" />
+			<error-handler >
+				<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e5142b07-3e92-4641-9388-b9beacb2c2c0" >
+					<ee:transform doc:name="Transform Message" doc:id="2e0f0ae1-2461-4a48-9b51-76583c098ad5" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"Error": "Could not connect to Database",
+	message: payload
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+				</on-error-propagate>
+			</error-handler>
+		</try>
+		<logger level="INFO" doc:name="Logger" doc:id="d8d1172a-726e-4160-97c9-e7238b0a86a7" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="f5fd1432-8c11-4d22-bf8e-a89b030286b0" >
+				<ee:transform doc:name="Transform Message" doc:id="db2b6baa-0529-4da2-8621-bb3b2e420b98" >
 					<ee:message >
 						<ee:set-payload ><![CDATA[%dw 2.0
 output application/json

@@ -1,0 +1,9 @@
+%dw 2.0
+
+type auto_ef9b824b_575d_4244_94bc_55f8c5beb177_Output_Variables_sfContacts = {|
+  error: {|
+    Error: String, 
+    message: Any
+  |}
+|}
+

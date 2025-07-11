@@ -1,7 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<mule xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd">
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
 	<configuration-properties doc:name="Configuration properties" doc:id="3cd22e3d-d003-4ebd-8068-ddb514da3b40" file="config.yaml" />
+	<configuration doc:name="Configuration" doc:id="1a7ca0f3-3d3e-4483-99d7-319748e30a50" defaultErrorHandler-ref="globalError_Handler" />
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="737b7f07-0bbd-4c88-9121-652856d8d65f" file="encrypt-secure.properties" key="mule123" >
+		<secure-properties:encrypt algorithm="Blowfish" />
+	</secure-properties:config>
+	
+	
+	<salesforce:sfdc-config name="Salesforce_Config1" doc:name="Salesforce Config" doc:id="798c4de3-2eab-4307-801d-18eceb4d9451" >
+		<salesforce:basic-connection username="${secure::sf.username}" password="${secure::sf.password}" securityToken="${secure::sf.token}" />
+	</salesforce:sfdc-config>
+	<http:listener-config name="HTTP_Listener_config1" doc:name="HTTP Listener config" doc:id="fc1d31da-ba3c-477a-8a3d-6be9a5657ad2" >
+		<http:listener-connection host="localhost" port="${secure::http.port}" />
+	</http:listener-config>
+	<db:config name="Database_Config1" doc:name="Database Config" doc:id="a216989f-7350-4df9-ad0d-8b5de554ba5b" >
+		<db:generic-connection url="${secure::db.url}" driverClassName="${secure::db.class}" user="${secure::db.username}" password="${secure::db.password}" />
+	</db:config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="28efc9c0-8238-402d-b78e-90b90c4dd259" >
+		<http:request-connection host="localhost" port="8081" />
+	</http:request-config>
+	<error-handler name="globalError_Handler" doc:id="c388738b-bc42-48f3-a8d3-55c40cd541df" >
+		<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="94c6c697-07f3-42d6-bfb8-47a240b858a6" type="ANY" >
+			<ee:transform doc:name="error.description" doc:id="d7be80a8-614b-4831-a9de-37f133fe112a" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":error.description
+}]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<set-variable value="500" doc:name="httpStatus" doc:id="012fd48b-bea7-4fd4-95a5-30dfa29c9b22" variableName="httpStatus" />
+		</on-error-continue>
+	</error-handler>
 </mule>
